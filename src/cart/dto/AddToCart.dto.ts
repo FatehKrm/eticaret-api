@@ -2,6 +2,9 @@ import { IsInt, Min } from "class-validator";
 export class AddToCartDto 
 {
     @IsInt()
+    userId: number; // 👈 EKLE
+
+    @IsInt()
     productId: number;
 
     @IsInt()
