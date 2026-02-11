@@ -7,6 +7,8 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { Product } from 'src/products/entities/product.entity';
 import { Cart } from 'src/cart/entities/cart.entity';
+import { CreateOrderFromCartDto } from './dto/create-order-from-cart.dto';
+
 
 @Injectable()
 export class OrderService {
@@ -26,8 +28,7 @@ export class OrderService {
 
   ) {}
 
-  async createOrderFromCart(userId: number, createOrderDto: CreateOrderDto)
-  {
+    async createOrderFromCart(userId: number, createOrderDto: CreateOrderFromCartDto){
     const cartItems = await this.cartRepository.find({
       where: { user: { id: userId } },
       relations: ['product'],
@@ -73,13 +74,13 @@ export class OrderService {
 
         return this.orderRepository.findOne({
           where : { id: saveOrder.id },
-          relations : ['items', 'items.product', 'user']
+          relations : ['orderItems', 'orderItems.product', 'user']
         });
   }
   async getUserOrders(userId:number){
     return this.orderRepository.find({
       where:{user : {id : userId}}, //c# daki karşılığı : where: x => x.user.id == userId
-      relations : ['items','items.product'],
+      relations : ['orderItems','orderItems.product'],
       order : { createdAt : 'DESC'}, // c# daki karşılığı : orderBy: x => x.createdAt, direction: 'DESC'
     });
   }
@@ -87,7 +88,7 @@ export class OrderService {
   {
      const order = await this.orderRepository.findOne({
       where : {id :orderId, user: {id : userId}},
-      relations : ['items','items.product', 'user'],
+      relations : ['orderItems','orderItems.product', 'user'],
      });
      if(!order) throw new NotFoundException("Sipariş bulunamadı!");
       return order;
@@ -96,7 +97,7 @@ export class OrderService {
   async cancelOrder(orderId:number, userId:number){
     const order = await this.orderRepository.findOne({
       where : {id :orderId, user: {id : userId}},
-      relations :['items','items.product'],
+      relations :['orderItems','orderItems.product'],
     });
 
     if(!order) throw new NotFoundException("Sipariş bulunamadı!");
@@ -111,6 +112,8 @@ export class OrderService {
     order.status = OrderStatus.CANCELLED; // siparişi iptal ediyoruz
     return this.orderRepository.save(order); // güncellenmiş siparişi kaydediyoruz
   }
+
+
 
 }
 

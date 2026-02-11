@@ -12,7 +12,7 @@ export class OrderController {
   @Post('add/:userId')
   createFromCart(
     @Param('userId') userId: string,
-    @Body() createOrderDto: CreateOrderFromCartDto, // 👈 DTO değişti
+    @Body() createOrderDto: CreateOrderFromCartDto, 
   ) {
     return this.orderService.createOrderFromCart(+userId, createOrderDto);
   }
