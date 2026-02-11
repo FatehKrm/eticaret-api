@@ -1,36 +1,40 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, UseGuards } from '@nestjs/common';
 import { OrderService } from './order.service';
-import { CreateOrderDto } from './dto/create-order.dto';
-import { UpdateOrderDto } from './dto/update-order.dto';
 import { CreateOrderFromCartDto } from './dto/create-order-from-cart.dto';
+import { AuthGuard } from '@nestjs/passport';
+import { GetUser } from '../auth/decorators/get-user.decorator';
 
 @Controller('order')
+@UseGuards(AuthGuard('jwt'))
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
-  
-  @Post('add/:userId')
+  @Post()
   createFromCart(
-    @Param('userId') userId: string,
+    @GetUser('userId') userId: number,
     @Body() createOrderDto: CreateOrderFromCartDto, 
   ) {
-    return this.orderService.createOrderFromCart(+userId, createOrderDto);
-  }
-   @Get('user/:userId')
-  getUserOrders(@Param('userId') userId: string) {
-    return this.orderService.getUserOrders(+userId);
-  }
-  @Get(':orderId/user/:userId')
-  getOrder(@Param('orderId') orderId: string, @Param('userId') userId: string) {
-    return this.orderService.getOrderById(+orderId, +userId);
+    return this.orderService.createOrderFromCart(userId, createOrderDto);
   }
 
-  @Delete(':orderId/user/:userId')
+  @Get()
+  getUserOrders(@GetUser('userId') userId: number) {
+    return this.orderService.getUserOrders(userId);
+  }
+
+  @Get(':orderId')
+  getOrder(
+    @Param('orderId') orderId: string, 
+    @GetUser('userId') userId: number
+  ) {
+    return this.orderService.getOrderById(+orderId, userId);
+  }
+
+  @Delete(':orderId')
   cancelOrder(
     @Param('orderId') orderId: string,
-    @Param('userId') userId: string,
+    @GetUser('userId') userId: number
   ) {
-    return this.orderService.cancelOrder(+orderId, +userId);
+    return this.orderService.cancelOrder(+orderId, userId);
   }
-
 }

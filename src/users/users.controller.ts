@@ -2,8 +2,8 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@n
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { jWTGuard } from 'src/auth/jwt.guard';
 import { AuthGuard } from '@nestjs/passport';
+import { GetUser } from '../auth/decorators/get-user.decorator';
 
 @Controller('users')
 export class UsersController {
@@ -15,22 +15,30 @@ export class UsersController {
   }
 
   @UseGuards(AuthGuard('jwt'))
- // Bu dekoratör, bu rotaya erişmeden önce JWT doğrulamasını zorunlu kılar. Yani, bu rotaya erişmek isteyen bir istemcinin geçerli bir JWT'ye sahip olması gerekir.
   @Get()
   findAll() {
     return this.usersService.findAll();
   }
 
+  @UseGuards(AuthGuard('jwt'))
+  @Get('me')
+  getProfile(@GetUser('userId') userId: number) {
+    return this.usersService.findOne(userId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(+id);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.update(+id, updateUserDto);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.usersService.remove(+id);
