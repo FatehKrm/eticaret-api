@@ -76,6 +76,41 @@ export class OrderService {
           relations : ['items', 'items.product', 'user']
         });
   }
-   
+  async getUserOrders(userId:number){
+    return this.orderRepository.find({
+      where:{user : {id : userId}}, //c# daki karşılığı : where: x => x.user.id == userId
+      relations : ['items','items.product'],
+      order : { createdAt : 'DESC'}, // c# daki karşılığı : orderBy: x => x.createdAt, direction: 'DESC'
+    });
+  }
+  async getOrderById(orderId:number, userId:number)
+  {
+     const order = await this.orderRepository.findOne({
+      where : {id :orderId, user: {id : userId}},
+      relations : ['items','items.product', 'user'],
+     });
+     if(!order) throw new NotFoundException("Sipariş bulunamadı!");
+      return order;
+  }
+
+  async cancelOrder(orderId:number, userId:number){
+    const order = await this.orderRepository.findOne({
+      where : {id :orderId, user: {id : userId}},
+      relations :['items','items.product'],
+    });
+
+    if(!order) throw new NotFoundException("Sipariş bulunamadı!");
+    if(order.status !== OrderStatus.PENDING) throw new BadRequestException("Sadece bekleyen siparişler iptal edilebilir!");
+ 
+    for(const item of order.orderItems)
+    {
+      item.product.stock += item.quantity; // stokları geri ekliyoruz
+      await this.productRepository.save(item.product); // güncellenmiş ürünü kaydediyoruz
+    }
+
+    order.status = OrderStatus.CANCELLED; // siparişi iptal ediyoruz
+    return this.orderRepository.save(order); // güncellenmiş siparişi kaydediyoruz
+  }
+
 }
 

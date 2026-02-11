@@ -2,33 +2,35 @@ import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/commo
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
+import { CreateOrderFromCartDto } from './dto/create-order-from-cart.dto';
 
 @Controller('order')
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
-  @Post()
-  create(@Body() createOrderDto: CreateOrderDto) {
-    return this.orderService.create(createOrderDto);
+  
+  @Post('add/:userId')
+  createFromCart(
+    @Param('userId') userId: string,
+    @Body() createOrderDto: CreateOrderFromCartDto, // 👈 DTO değişti
+  ) {
+    return this.orderService.createOrderFromCart(+userId, createOrderDto);
+  }
+   @Get('user/:userId')
+  getUserOrders(@Param('userId') userId: string) {
+    return this.orderService.getUserOrders(+userId);
+  }
+  @Get(':orderId/user/:userId')
+  getOrder(@Param('orderId') orderId: string, @Param('userId') userId: string) {
+    return this.orderService.getOrderById(+orderId, +userId);
   }
 
-  @Get()
-  findAll() {
-    return this.orderService.findAll();
+  @Delete(':orderId/user/:userId')
+  cancelOrder(
+    @Param('orderId') orderId: string,
+    @Param('userId') userId: string,
+  ) {
+    return this.orderService.cancelOrder(+orderId, +userId);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.orderService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateOrderDto: UpdateOrderDto) {
-    return this.orderService.update(+id, updateOrderDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.orderService.remove(+id);
-  }
 }
