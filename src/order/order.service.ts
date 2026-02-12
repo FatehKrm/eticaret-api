@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { Order, OrderStatus } from './entities/order.entity';
 import { OrderItem } from './entities/orderItem.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -25,57 +25,66 @@ export class OrderService {
 
     @InjectRepository(Cart)
     private readonly cartRepository: Repository<Cart>,  
+    
+    private readonly dataSource: DataSource,
 
   ) {}
 
-    async createOrderFromCart(userId: number, createOrderDto: CreateOrderFromCartDto){
-    const cartItems = await this.cartRepository.find({
-      where: { user: { id: userId } },
-      relations: ['product'],
-    });
-    if(cartItems.length===0) throw new BadRequestException("Sepetiniz boş!");
-    
-    const order = this.orderRepository.create({
-      user: { id: userId },
-      shippingAddress: createOrderDto.shippingAddress,
-      phoneNumber: createOrderDto.phone,
-      status: OrderStatus.PENDING,
-      totalAmount:0,
-    });
-    
-    const saveOrder = await this.orderRepository.save(order);
+     async createOrderFromCart(userId: number, createOrderDto: CreateOrderFromCartDto) {
+    return await this.dataSource.transaction(async (manager) => {
+      const cartItems = await manager.find(Cart, {
+        where: { user: { id: userId } },
+        relations: ['product'],
+      });
 
-    let totalAmount = 0;
-    const orderItems: OrderItem[] = [];
-    for ( const cartItem of cartItems) // foreach ile sepet ürünlerini dolaşıyoruz
-      {
-         if(cartItem.product.stock < cartItem.quantity) // stok kontrolü yapıyoruz
-         {
-          throw new BadRequestException(`${cartItem.product.name} ürününden yeterli stok bulunmamaktadır!`);
-         }
-         const orderItem = this.orderItemRepository.create({
-          order :saveOrder,
-          product : cartItem.product,
-          quantity : cartItem.quantity,
-          price : cartItem.product.price,
-         });
-         orderItems.push(orderItem);
-         totalAmount += cartItem.product.price * cartItem.quantity;
+      if (cartItems.length === 0) {
+        throw new BadRequestException("Sepetiniz boş!");
+      }
 
-         cartItem.product.stock -= cartItem.quantity; // stoktan düşüyoruz
-         await this.productRepository.save(cartItem.product); // güncellenmiş ürünü kaydediyoruz
+      const order = manager.create(Order, {
+        user: { id: userId },
+        shippingAddress: createOrderDto.shippingAddress,
+        phoneNumber: createOrderDto.phone,
+        status: OrderStatus.PENDING,
+        totalAmount: 0,
+      });
+
+      const savedOrder = await manager.save(order);
+
+      let totalAmount = 0;
+      const orderItems: OrderItem[] = [];
+
+      for (const cartItem of cartItems) {
+        if (cartItem.product.stock < cartItem.quantity) {
+          throw new BadRequestException(
+            `${cartItem.product.name} ürününden yeterli stok bulunmamaktadır!`
+          );
         }
 
-        await this.orderItemRepository.save(orderItems); // order itemları kaydediyoruz
-        saveOrder.totalAmount = totalAmount; // toplam tutarı güncelliyoruz
-        await this.orderRepository.save(saveOrder); // güncellenmiş orderı kaydediyoruz
-
-        await this.cartRepository.remove(cartItems); // sepeti temizliyoruz
-
-        return this.orderRepository.findOne({
-          where : { id: saveOrder.id },
-          relations : ['orderItems', 'orderItems.product', 'user']
+        const orderItem = manager.create(OrderItem, {
+          order: savedOrder,
+          product: cartItem.product,
+          quantity: cartItem.quantity,
+          price: cartItem.product.price,
         });
+
+        orderItems.push(orderItem);
+        totalAmount += cartItem.product.price * cartItem.quantity;
+
+        cartItem.product.stock -= cartItem.quantity;
+        await manager.save(Product, cartItem.product);
+      }
+
+      await manager.save(OrderItem, orderItems);
+      savedOrder.totalAmount = totalAmount;
+      await manager.save(Order, savedOrder);
+      await manager.remove(Cart, cartItems);
+
+      return manager.findOne(Order, {
+        where: { id: savedOrder.id },
+        relations: ['orderItems', 'orderItems.product', 'user'],
+      });
+    });
   }
   async getUserOrders(userId:number){
     return this.orderRepository.find({
@@ -95,6 +104,7 @@ export class OrderService {
   }
 
   async cancelOrder(orderId:number, userId:number){
+    return await this.dataSource.transaction(async (manager) => {
     const order = await this.orderRepository.findOne({
       where : {id :orderId, user: {id : userId}},
       relations :['orderItems','orderItems.product'],
@@ -111,7 +121,8 @@ export class OrderService {
 
     order.status = OrderStatus.CANCELLED; // siparişi iptal ediyoruz
     return this.orderRepository.save(order); // güncellenmiş siparişi kaydediyoruz
-  }
+  });
+}
 
 
 

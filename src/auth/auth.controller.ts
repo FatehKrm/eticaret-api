@@ -1,16 +1,19 @@
 import { Controller, Post, Body } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Authentication')
 @Controller('auth')
 export class AuthController 
 {
     constructor(private readonly authService : AuthService){}
-
     @Post('login')
-    login(@Body() dto:LoginDto){
-        return this.authService.login(dto.email, dto.password); 
-        // bu method auth service içindeki login methodunu çağıracak, dto içindeki email ve password bilgilerini parametre olarak verecek.
+    @ApiOperation({ summary: 'Kullanıcı girişi' })
+    @ApiResponse({ status: 200, description: 'Giriş başarılı, JWT token döndü' })
+    @ApiResponse({ status: 401, description: 'Geçersiz kimlik bilgileri' })
+    login(@Body() dto: LoginDto) {
+        return this.authService.login(dto.email, dto.password);
     }
 }
 // @Body() decorator'ı ile gelen request body'sindeki verileri
